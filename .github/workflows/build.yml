@@ -1,0 +1,56 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Desempacotar source.zip (se enviado)
+        run: |
+          if [ -f source.zip ]; then
+            unzip -o -q source.zip
+            rm -f source.zip
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A . ':!.github'
+            git commit -q -m "Atualiza o codigo a partir de source.zip" || true
+            git push || true
+          fi
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - name: Testes e APK de debug
+        run: |
+          set -o pipefail
+          gradle --no-daemon --console=plain testDebugUnitTest assembleDebug 2>&1 | tee build.log
+      - name: Resumo dos erros
+        if: failure()
+        run: |
+          echo "=====ERROS====="
+          grep -n -E "^e: |^w: .*error|error:|FAILED|What went wrong|Could not|Unresolved|AAPT" -A2 build.log | head -200 || true
+          echo "=====FIM====="
+      - name: Renomear APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk TrackerX-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: TrackerX-debug
+          path: TrackerX-debug.apk
+      - name: Publicar para download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: Tracker X UI - build ${{ github.run_number }}
+          body: APK de debug. No tablet, baixe o arquivo TrackerX-debug.apk e instale.
+          files: TrackerX-debug.apk
