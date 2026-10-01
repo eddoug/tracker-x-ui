@@ -83,9 +83,10 @@ class BluetoothMonitor(private val context: Context) {
             ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_EXPORTED)
             audio?.registerAudioDeviceCallback(audioCallback, Handler(Looper.getMainLooper()))
         }
-        if (a2dp == null && adapter != null && hasPermission()) {
+        val bt = adapter
+        if (a2dp == null && bt != null && hasPermission()) {
             runCatching {
-                adapter.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
+                bt.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
                     override fun onServiceConnected(profile: Int, proxy: BluetoothProfile?) {
                         a2dp = proxy
                         refresh()
